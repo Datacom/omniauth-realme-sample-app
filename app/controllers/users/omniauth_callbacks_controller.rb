@@ -1,28 +1,13 @@
-class Users::OmniauthCallbacksController < Devise::OmniauthCallbacksController
-  # You should configure your model like this:
-  # devise :omniauthable, omniauth_providers: [:twitter]
+class RealmeUsers::OmniauthCallbacksController < Devise::OmniauthCallbacksController
+  def realme
+    @realme_user = RealmeUser.from_omniauth(request.env["omniauth.auth"])
 
-  # You should also create an action method in this controller like this:
-  # def twitter
-  # end
-
-  # More info at:
-  # https://github.com/plataformatec/devise#omniauth
-
-  # GET|POST /resource/auth/twitter
-  # def passthru
-  #   super
-  # end
-
-  # GET|POST /users/auth/twitter/callback
-  # def failure
-  #   super
-  # end
-
-  # protected
-
-  # The path used when OmniAuth fails
-  # def after_omniauth_failure_path_for(scope)
-  #   super(scope)
-  # end
+    if @realme_user.persisted?
+      sign_in_and_redirect @realme_user, :event => :authentication #this will throw if @realme_user is not activated
+      set_flash_message(:notice, :success, :kind => "Realme") if is_navigational_format?
+    else
+      # If for some reason the user cannot be saved
+      raise 'RealMe user was not found or created'
+    end
+  end
 end
