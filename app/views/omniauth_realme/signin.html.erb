@@ -1,0 +1,32 @@
+<!-- <form action='realme' method='POST' path='/realme'>
+  <h3>Integrator test library</h3>
+  Your application: #{ application.customer_name} - #{ application.app_name }
+  <br/>
+  Pick your usecase
+  <select name='use_case'>
+    <option selected>Logon</option>
+    <option>Assert</option>
+  </select>
+  <br/>
+  <input type='submit' name='submit' value='Test your intergrator library!'/>
+</form>
+ -->
+
+<h3>Integrator Test Library</h3>
+<!-- { application.customer_name} - #{ application.app_name } -->
+
+<%= form_for(@realme, method: "post", url: realme_path) do |f| %>
+  <div class="field">
+    <%= f.label "Customer Name" %><br />
+    <%= f.text_field :customer_name, autofocus: true %>
+  </div>
+
+  <div class="field">
+    <%= f.label "Application Name" %><br />
+    <%= f.text_field :app_name %>
+  </div>
+
+  <div class="actions">
+    <%= f.submit "Log in" %>
+  </div>
+<% end %>
