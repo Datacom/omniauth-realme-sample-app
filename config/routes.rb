@@ -1,6 +1,6 @@
 Rails.application.routes.draw do
 
-  devise_for :users, controllers: { sessions: "users/sessions", omniauth_callbacks: "realme_users/omniauth_callbacks" }
+  devise_for :users, controllers: { sessions: "users/sessions", omniauth_callbacks: "users/omniauth_callbacks" }
   post 'realme' => 'omniauth_realme#submit'
 
   authenticated :user do
