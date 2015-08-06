@@ -12,21 +12,33 @@
 </form>
  -->
 
-<h3>Integrator Test Library</h3>
-<!-- { application.customer_name} - #{ application.app_name } -->
+<h2>Integrator Test Library</h2>
+
+<p>Logging in with realme will redirect you to the realme authentication site.</p>
+<p>Once you verify your credentials through realme, you will be securly redirected and logged into the application.</p>
+<br/>
+
+<p>There are two methods for authentication: Logon and Assert</p>
+<p>Logon will only provide essential credentials like the users 'FLT' and name</p>
+<p>Assert will provide additional user information when compared to Logon</p>
+
+<br/>
+
+<h3>Current Application Credentials:</h3>
+<h4>
+  <%= "Customer Name: #{ @realme.customer_name } & Application Name: #{ @realme.app_name }" %>
+</h4>
 
 <%= form_for(@realme, method: "post", url: realme_path) do |f| %>
-  <div class="field">
-    <%= f.label "Customer Name" %><br />
-    <%= f.text_field :customer_name, autofocus: true %>
-  </div>
 
   <div class="field">
-    <%= f.label "Application Name" %><br />
-    <%= f.text_field :app_name %>
+    <%= radio_button_tag(:use_case, "logon") %>
+    <%= label_tag(:logon, "Logon") %>
+    <%= radio_button_tag(:use_case, "assert") %>
+    <%= label_tag(:assert, "Assert") %>
   </div>
 
   <div class="actions">
-    <%= f.submit "Log in" %>
+    <%= f.submit "Log in with REALME" %>
   </div>
 <% end %>
