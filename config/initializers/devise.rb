@@ -262,4 +262,6 @@ Devise.setup do |config|
   # When using OmniAuth, Devise cannot automatically set OmniAuth path,
   # so you need to do it manually. For the users scope, it would be:
   # config.omniauth_path_prefix = '/my_engine/users/auth'
+  require 'omniauth/strategies/realme'
+  config.omniauth :realme, "CelebrantsOnline", "test", "test", "7feef0d575365443759eb860cc6eed48"
 end

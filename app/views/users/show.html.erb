@@ -1,0 +1,4 @@
+<h1><%= "#{@user.first_name} #{@user.last_name}" %></h1>
+
+<p>FLT: <%= @user.flt %></p>
+<p>FIT: <%= @user.try(:flt) %></p>
