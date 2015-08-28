@@ -16,7 +16,7 @@ The configuration for this gem is slightly more involved than some others, due t
 Start by adding the gem to your config/initializers/devise.rb
 
 ```ruby
-config.omniauth :realme, ENV['CLIENT_NAME'], ENV['APP_NAME'], ENV['SHARED_KEY']
+config.omniauth :realme, ENV['CLIENT_NAME'], ENV['APP_NAME_ASSERT'], ENV['APP_NAME_LOGON'], ENV['SHARED_KEY']
 ```
 
 Followed by adding realme as a provider in your user model

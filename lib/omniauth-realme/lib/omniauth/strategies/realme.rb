@@ -1,6 +1,5 @@
 require 'omniauth'
 require 'omniauth/realme/application'
-require 'omniauth/realme/integrator'
 require 'openssl'
 require 'rack/utils'
 require 'uri'
@@ -10,7 +9,7 @@ module OmniAuth
     class Realme
       include OmniAuth::Strategy
 
-      args [:client_name, :app_name, :shared_key]
+      args [:client_name, :app_name_assert, :app_name_logon, :shared_key]
 
       option :name, "realme"
 
@@ -26,20 +25,27 @@ module OmniAuth
 
       # Initiated when app attempts to access /auth/realme. Sends the user to the RealMe login
       def request_phase
-        application = OmniAuth::Realme::Application.new(options[:client_name], options[:app_name], options[:shared_key])
-        integrator_loc = "https://www.cloudidentityintegrator.datacom.co.nz/service/Initiator?"
+
+
+        
+      redirect_uri = OmniAuth::Realme::CloudIdentityIntegrator.build_redirect_uri(query_string)
+      redirect redirect_uri
+
+      
 
         # Change the return URL if there is one
         queries = Rack::Utils.parse_nested_query(request.env["QUERY_STRING"])
         options[:return_url] = queries["return_url"] if queries["return_url"]
         options[:logon_type] = (queries["logon_type"] && queries["logon_type"].downcase == "assert") ? "Assert" : "Logon"
 
+        application = OmniAuth::Realme::Application.new(options[:client_name], options[:logon_type] == 'Assert' ? options[:app_name_assert] : options[:app_name_logon], options[:shared_key])
+
         integrator = OmniAuth::Realme::Integrator.new(application)
         message = integrator.build_message(options[:logon_type]) # Test use case
         redirect (integrator_loc + message)
       end
 
-      uid { @raw_info["FIT"] || @raw_info["FLT"] }
+      uid { @raw_info["FLT"] || @raw_info["FIT"] } # Leave the FIT in just incase someone is using the test integrator
 
       info do
         {
@@ -58,7 +64,8 @@ module OmniAuth
           town_city:      @raw_info["TownCity"],
           message_type:   @raw_info["MessageType"],
           status_code:    @raw_info["StatusCode"],
-          status_message: @raw_info["StatusMessage"]
+          status_message: @raw_info["StatusMessage"],
+          fit:            @raw_info["FIT"]
         }
       end
 
@@ -70,32 +77,26 @@ module OmniAuth
 
       # Fills out the omniauth.auth hash upon receiving a callback from the RealMe servers
       def callback_phase
-        # Parse the response into a hash
-        application = OmniAuth::Realme::Application.new(options[:client_name], options[:app_name], options[:shared_key])
-        integrator = OmniAuth::Realme::Integrator.new(application)
-        # Get the query string response - TODO: is this the best way to manage the response string?
-        response = integrator.process_response(URI.decode(request.env["QUERY_STRING"][11..-1]))
 
-        # Check for errors
-        if response[:internal_error]
-          case response[:internal_error]
-            when :bad_signing
-              raise 'Bad signing'
-            when :bad_dates
-              raise 'Bad dates'
-            else
-              raise 'Error with RealMe authentication'
-          end
-        end
+        query_string = URI.decode(request.env["QUERY_STRING"][11..-1])
+
+        @raw_info = OmniAuth::Realme::CloudIdentityIntegrator.process_callback(query_string)
+        # Parse the response into a hash
+        # application = OmniAuth::Realme::Application.new(options[:client_name], nil, options[:shared_key])
+        # integrator = OmniAuth::Realme::Integrator.new(application)
+        # # Get the query string response - TODO: is this the best way to manage the response string?
+        # response = integrator.process_response(URI.decode(request.env["QUERY_STRING"][11..-1]))
+
+
+
+
+        # # Check for errors and return the 
+        # @raw_info = handle_response(response[:internal_error]) if response[:internal_error]
 
         # Calculate the return URL
-        response["ReturnURL"] = options[:return_url]
-
-        # Return the correctly filled omniauth.auth hash
-        @raw_info = response
+        @raw_info["ReturnURL"] = options[:return_url]
         super
       end
-
     end
   end
 end

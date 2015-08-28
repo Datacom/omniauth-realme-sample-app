@@ -1,0 +1,4 @@
+CloudIdentityIntegrator.shared_symmetric_key=
+CloudIdentityIntegrator.customer_name=
+CloudIdentityIntegrator.assert_app_name=
+CloudIdentityIntegrator.logon_app_name=
