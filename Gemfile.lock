@@ -1,7 +1,7 @@
 PATH
   remote: lib/omniauth-realme
   specs:
-    omniauth-realme (0.0.1)
+    omniauth-realme (1.0.0)
       omniauth (~> 1.0)
 
 GEM

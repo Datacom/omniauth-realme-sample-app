@@ -25,24 +25,13 @@ module OmniAuth
 
       # Initiated when app attempts to access /auth/realme. Sends the user to the RealMe login
       def request_phase
-
-
-        
-      redirect_uri = OmniAuth::Realme::CloudIdentityIntegrator.build_redirect_uri(query_string)
-      redirect redirect_uri
-
-      
-
         # Change the return URL if there is one
         queries = Rack::Utils.parse_nested_query(request.env["QUERY_STRING"])
         options[:return_url] = queries["return_url"] if queries["return_url"]
         options[:logon_type] = (queries["logon_type"] && queries["logon_type"].downcase == "assert") ? "Assert" : "Logon"
 
-        application = OmniAuth::Realme::Application.new(options[:client_name], options[:logon_type] == 'Assert' ? options[:app_name_assert] : options[:app_name_logon], options[:shared_key])
-
-        integrator = OmniAuth::Realme::Integrator.new(application)
-        message = integrator.build_message(options[:logon_type]) # Test use case
-        redirect (integrator_loc + message)
+        redirect_uri = OmniAuth::Realme::CloudIdentityIntegrator.build_redirect_uri(query_string, options[:logon_type])
+        redirect redirect_uri
       end
 
       uid { @raw_info["FLT"] || @raw_info["FIT"] } # Leave the FIT in just incase someone is using the test integrator
@@ -77,21 +66,8 @@ module OmniAuth
 
       # Fills out the omniauth.auth hash upon receiving a callback from the RealMe servers
       def callback_phase
-
         query_string = URI.decode(request.env["QUERY_STRING"][11..-1])
-
         @raw_info = OmniAuth::Realme::CloudIdentityIntegrator.process_callback(query_string)
-        # Parse the response into a hash
-        # application = OmniAuth::Realme::Application.new(options[:client_name], nil, options[:shared_key])
-        # integrator = OmniAuth::Realme::Integrator.new(application)
-        # # Get the query string response - TODO: is this the best way to manage the response string?
-        # response = integrator.process_response(URI.decode(request.env["QUERY_STRING"][11..-1]))
-
-
-
-
-        # # Check for errors and return the 
-        # @raw_info = handle_response(response[:internal_error]) if response[:internal_error]
 
         # Calculate the return URL
         @raw_info["ReturnURL"] = options[:return_url]

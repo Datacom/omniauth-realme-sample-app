@@ -14,7 +14,7 @@ module OmniAuth
 
         def_delegators :default_client, :customer_name=, :assert_app_name=, :logon_app_name=, :shared_symmetric_key=
         def_delegators :default_client, :customer_name, :assert_app_name, :logon_app_name, :shared_symmetric_key
-        def_delegators :default_client, :process_callback, :build_message
+        def_delegators :default_client, :process_callback, :build_redirect_uri
 
         #logger modelled on https://github.com/pusher/pusher-gem/blob/master/lib/pusher.rb
         attr_writer :logger
@@ -29,6 +29,22 @@ module OmniAuth
 
         def default_client
           @default_client ||= CloudIdentityIntegrator::Client.new
+        end
+
+        def shared_symmetric_key=(value)
+          @shared_symmetric_key = value
+        end
+
+        def customer_name=(value)
+          @customer_name = value
+        end
+
+        def assert_app_name=(value)
+          @assert_app_name = value
+        end
+
+        def logon_app_name=(value)
+          @logon_app_name = value
         end
 
       end
@@ -51,7 +67,7 @@ module OmniAuth
             :host, :customer_name, :assert_app_name, :logon_app_name, :shared_symmetric_key, :timeout
           )
 
-          @app_name = assert_app_name || logon_app_name
+          @app_name = @assert_app_name || @logon_app_name
 
           # Generates and assigns the encryption key and the auth key.
           # The encryption key will be used later for symmetric cryptography.
@@ -66,20 +82,19 @@ module OmniAuth
           "https://#{@host}/#{@integrator_uri}?"
         end
 
-
         def handle_reponse status_code, response
           case status_code
             when :bad_signing
-              raise Omniauth::RealMe::ResponseError.new
+              raise ResponseError.new
             when :bad_dates
-              raise Omniauth::RealMe::SigningError.new
+              raise SigningError.new
             else
-              raise Omniauth::RealMe::MessageExpiredError.new
+              raise MessageExpiredError.new
           end
         end
       
         # Constructs the message to send to RealMe and returns it as a string
-        def build_message use_case
+        def build_redirect_uri query_string, use_case
           # Generate timestamp and nonce
           time_stamp = Time.now.strftime("%Y-%m-%d\T%H:%M:%S\Z")
           nonce = Random.new.bytes(8).unpack('H*')[0]
@@ -97,7 +112,7 @@ module OmniAuth
         end
 
         # Decrypts and processes the response into manageable components and checks for errors
-        def process_response response
+        def process_callback response
           # Decode the message
           response = Base64.decode64(response)
 
@@ -115,6 +130,7 @@ module OmniAuth
               generated_mac: Base64.strict_encode64(generated_mac),
               passed_mac: Base64.strict_encode64(mac)
             }
+            handle_reponse :bad_signing, response
           else
             # Decrypt and unpack the response string
             response = decrypt_and_unpack cipher, init_vector
@@ -135,6 +151,7 @@ module OmniAuth
                 end_date: response['IIMessageNotAfter'],
                 current_date: Time.now.utc.strftime("%Y-%m-%d\T%H:%M:%S\Z")
               }
+              handle_reponse :bad_dates, response
             end
 
             response
