@@ -9,8 +9,6 @@ module OmniAuth
     class Realme
       include OmniAuth::Strategy
 
-      args [:client_name, :app_name_assert, :app_name_logon, :shared_key]
-
       option :name, "realme"
 
       option :client_options, {
@@ -30,7 +28,7 @@ module OmniAuth
         options[:return_url] = queries["return_url"] if queries["return_url"]
         options[:logon_type] = (queries["logon_type"] && queries["logon_type"].downcase == "assert") ? "Assert" : "Logon"
 
-        redirect_uri = OmniAuth::Realme::CloudIdentityIntegrator.build_redirect_uri(query_string, options[:logon_type])
+        redirect_uri = OmniAuth::Realme::CloudIdentityIntegrator.build_redirect_uri(options[:logon_type])
         redirect redirect_uri
       end
 

@@ -31,6 +31,39 @@ module OmniAuth
           @default_client ||= CloudIdentityIntegrator::Client.new
         end
 
+      end
+
+      class Client
+
+        attr_accessor :auth_key
+        attr_accessor :enc_key
+
+        CBC_BLOCK_SIZE = 16
+
+        def initialize(options={})
+          options = {
+            host: 'www.cloudidentityintegrator.datacom.co.nz',
+            integrator_uri: 'service/Initiator',
+            timeout: 60000
+          }.merge(options)
+          @host, @integrator_uri, @customer_name, @assert_app_name, @logon_app_name, @shared_symmetric_key, @timeout = options.values_at(
+            :host, :integrator_uri, :customer_name, :assert_app_name, :logon_app_name, :shared_symmetric_key, :timeout
+          )
+        end
+
+        def generate_keys
+          return if @auth_key && @enc_key
+          raise 'You must set a sharedsymmetric key' unless @shared_symmetric_key.present?
+
+          # Generates and assigns the encryption key and the auth key.
+          # The encryption key will be used later for symmetric cryptography.
+          # The auth key will be used for signing.
+          packed_key = [@shared_symmetric_key].pack("H*")
+          keys = OpenSSL::HMAC.digest(OpenSSL::Digest.new('sha256'), packed_key, [(Digest::SHA2.new(256) << packed_key).to_s].pack('H*'))
+          @auth_key = keys[0..15]
+          @enc_key = keys[16..32]
+        end
+
         def shared_symmetric_key=(value)
           @shared_symmetric_key = value
         end
@@ -45,37 +78,6 @@ module OmniAuth
 
         def logon_app_name=(value)
           @logon_app_name = value
-        end
-
-      end
-
-      class Client
-
-        attr_accessor :app_name
-        attr_accessor :auth_key
-        attr_accessor :enc_key
-
-        CBC_BLOCK_SIZE = 16
-
-        def initialize(options={})
-          options = {
-            host: 'www.cloudidentityintegrator.datacom.co.nz',
-            integrator_uri: 'service/Initiator',
-            timeout: 60000
-          }.merge(options)
-          @host, @customer_name, @assert_app_name, @logon_app_name, @shared_symmetric_key, @timeout = options.values_at(
-            :host, :customer_name, :assert_app_name, :logon_app_name, :shared_symmetric_key, :timeout
-          )
-
-          @app_name = @assert_app_name || @logon_app_name
-
-          # Generates and assigns the encryption key and the auth key.
-          # The encryption key will be used later for symmetric cryptography.
-          # The auth key will be used for signing.
-          packed_key = [@shared_symmetric_key].pack("H*")
-          keys = OpenSSL::HMAC.digest(OpenSSL::Digest.new('sha256'), packed_key, [(Digest::SHA2.new(256) << packed_key).to_s].pack('H*'))
-          @auth_key = keys[0..15]
-          @enc_key = keys[16..32]
         end
 
         def integrator_path
@@ -94,7 +96,8 @@ module OmniAuth
         end
       
         # Constructs the message to send to RealMe and returns it as a string
-        def build_redirect_uri query_string, use_case
+        def build_redirect_uri use_case
+          generate_keys
           # Generate timestamp and nonce
           time_stamp = Time.now.strftime("%Y-%m-%d\T%H:%M:%S\Z")
           nonce = Random.new.bytes(8).unpack('H*')[0]
@@ -108,11 +111,12 @@ module OmniAuth
           # Encode
           request = Rack::Utils.escape(Base64.strict_encode64(request))
 
-          "custname=#{ @customer_name }&appname=#{ @app_name }&I2request=#{ request }"
+          integrator_path + "custname=#{ @customer_name }&appname=#{ use_case == 'Assert' ? @assert_app_name : @logon_app_name }&I2request=#{ request }"
         end
 
         # Decrypts and processes the response into manageable components and checks for errors
         def process_callback response
+          generate_keys
           # Decode the message
           response = Base64.decode64(response)
 
@@ -165,7 +169,7 @@ module OmniAuth
         # Rijndael cipher.
         def encrypt_and_sign message, use_case
           # Additional auth data
-          additional_auth_data = "#{ @customer_name }|#{ @app_name }|"
+          additional_auth_data = "#{ @customer_name }|#{ use_case == 'Assert' ? @assert_app_name : @logon_app_name }|"
 
           # Instantiate the cipher, set the mode to encryption, and generate IV
           cipher = OpenSSL::Cipher::AES.new(128, :CBC)
@@ -177,14 +181,13 @@ module OmniAuth
           # Pad the message manually
           padding = CBC_BLOCK_SIZE - (message.length % CBC_BLOCK_SIZE)
           message += (padding.chr * padding)
-
           # Encrypt the message
           cipher.key = @enc_key
           message_encrypt = cipher.update(message) + cipher.final
 
           # Sign the encrypted message
           message_hmac = sign(init_vector + message_encrypt + additional_auth_data)
-           
+
           "#{ init_vector }#{ message_hmac }#{ message_encrypt }"
         end
 
